@@ -25,23 +25,31 @@ module.exports = async (req, res) => {
     const { password } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD;
     
+    console.log('登录请求收到');
+    console.log('请求体:', req.body);
+    console.log('环境变量ADMIN_PASSWORD是否存在:', !!adminPassword);
+    
     if (!password) {
+      console.log('错误: 密码为空');
       res.status(400).json({ error: '请输入密码' });
       return;
     }
     
     if (!adminPassword) {
+      console.log('错误: 服务器未配置ADMIN_PASSWORD环境变量');
       res.status(500).json({ error: '服务器未配置密码' });
       return;
     }
     
     // 验证密码
     if (password === adminPassword) {
+      console.log('密码验证成功');
       res.status(200).json({
         success: true,
         message: '登录成功'
       });
     } else {
+      console.log('密码验证失败: 密码不匹配');
       res.status(401).json({
         success: false,
         error: '密码错误'
