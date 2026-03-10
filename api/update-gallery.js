@@ -3,10 +3,7 @@
  * 创建/删除分类、删除照片、切换喜欢状态
  */
 
-const fs = require('fs');
-const path = require('path');
-
-const DATA_FILE = path.join(process.cwd(), 'gallery-data.json');
+const { readGalleryData, writeGalleryData } = require('./_lib/gallery-store');
 
 module.exports = async (req, res) => {
   // 设置 CORS 头
@@ -31,10 +28,7 @@ module.exports = async (req, res) => {
   
   try {
     // 读取现有数据
-    let galleryData = { categories: [] };
-    if (fs.existsSync(DATA_FILE)) {
-      galleryData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    }
+    let galleryData = await readGalleryData();
     
     const { action } = req.body;
     
@@ -124,11 +118,8 @@ module.exports = async (req, res) => {
         return;
     }
     
-    // 更新最后更新时间
-    galleryData.lastUpdated = new Date().toISOString();
-    
     // 保存数据
-    fs.writeFileSync(DATA_FILE, JSON.stringify(galleryData, null, 2), 'utf8');
+    galleryData = await writeGalleryData(galleryData);
     
     res.status(200).json({
       success: true,

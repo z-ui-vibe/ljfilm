@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-这是一个基于 Vercel + Cloudinary 的在线摄影作品集网站，支持：
+这是一个基于 Vercel + Cloudinary + Vercel Blob 的在线摄影作品集网站，支持：
 - 在线展示照片画廊
 - 浏览器内直接上传照片
 - 创建/管理分类
@@ -28,6 +28,7 @@
 1. 访问 https://vercel.com
 2. 使用 GitHub 账号登录
 3. 授权 Vercel 访问你的 GitHub 仓库
+4. 在 Vercel 项目里启用 **Storage > Blob**
 
 #### GitHub（代码托管）
 确保你已有 GitHub 账号
@@ -86,6 +87,17 @@ git commit -m "Initial commit"
 | `CLOUDINARY_CLOUD_NAME` | 你的 Cloud name | 从 Cloudinary Dashboard 获取 |
 | `CLOUDINARY_API_KEY` | 你的 API Key | 从 Cloudinary Dashboard 获取 |
 | `CLOUDINARY_API_SECRET` | 你的 API Secret | 从 Cloudinary Dashboard 获取 |
+| `BLOB_READ_WRITE_TOKEN` | 你的 Blob Token | 从 Vercel Storage > Blob 获取，用于持久化保存分类、照片元数据和喜欢状态 |
+
+#### 3.3.1 启用 Vercel Blob
+
+1. 打开你的 Vercel 项目
+2. 点击顶部或侧边的 **Storage**
+3. 选择 **Blob**
+4. 点击 **Create Database / Create Store**
+5. 创建完成后，进入该 Blob 存储页
+6. 找到并复制 `BLOB_READ_WRITE_TOKEN`
+7. 回到 **Settings > Environment Variables**，把它添加进去
 
 #### 3.4 部署
 
@@ -111,6 +123,7 @@ git commit -m "Initial commit"
 2. 输入密码登录（即你设置的 `ADMIN_PASSWORD`）
 3. 创建分类（如：HP5 400、人像、风景等）
 4. 点击分类，上传照片
+5. 上传后，分类、照片列表和“喜欢/收藏”状态都会持久化保存在 Blob 中
 
 #### 方法二：通过 Cloudinary 批量上传
 
