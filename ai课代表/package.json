@@ -1,0 +1,15 @@
+{
+  "name": "photo-portfolio",
+  "version": "1.0.0",
+  "description": "在线摄影作品集网站",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "cloudinary": "^1.41.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

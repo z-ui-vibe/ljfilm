@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>摄影作品管理后台</title>
+  <style>
+    /* ========== 基础样式（与主站保持一致） ========== */
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-text: #1d1d1f;
+      --color-text-muted: #6e6e73;
+      --color-accent: #ff2d55;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.12);
+      --transition: 0.25s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--color-text);
+      background: var(--color-bg);
+    }
+
+    /* ========== 登录界面 ========== */
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
+    .login-box {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 3rem;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    
+    .login-box h1 {
+      font-size: 1.75rem;
+      margin: 0 0 2rem;
+      font-weight: 600;
+    }
+    
+    .password-input {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      transition: border-color var(--transition);
+    }
+    
+    .password-input:focus {
+      outline: none;
+      border-color: var(--color-accent);
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      color: white;
+      background: var(--color-text);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    
+    .login-btn:hover {
+      background: #333;
+    }
+    
+    .login-error {
+      color: var(--color-accent);
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    
+    .login-error.is-visible {
+      display: block;
+    }
+
+    /* ========== 管理界面 ========== */
+    .admin-container {
+      display: none;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .admin-container.is-visible {
+      display: block;
+    }
+
+    /* 头部 */
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .admin-header h1 {
+      font-size: 1.5rem;
+      margin: 0;
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      font-size: 0.95rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--transition);
+      border: none;
+    }
+    
+    .btn-primary {
+      background: var(--color-text);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #333;
+    }
+    
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-secondary:hover {
+      background: #f5f5f5;
+    }
+    
+    .btn-danger {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #e6294d;
+    }
+
+    /* 两栏布局 */
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+      .admin-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 侧边栏 - 分类管理 */
+    .sidebar {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      height: fit-content;
+    }
+    
+    .sidebar h2 {
+      font-size: 1.1rem;
+      margin: 0 0 1rem;
+    }
+    
+    .category-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .category-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    
+    .category-item:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    
+    .category-item.is-active {
+      background: rgba(255, 45, 85, 0.1);
+      color: var(--color-accent);
+    }
+    
+    .category-item span {
+      font-weight: 500;
+    }
+    
+    .category-count {
+      font-size: 0.8rem;
+      color: var(--color-text-muted);
+    }
+    
+    .delete-category-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all var(--transition);
+    }
+    
+    .category-item:hover .delete-category-btn {
+      opacity: 1;
+    }
+    
+    .delete-category-btn:hover {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .add-category-form {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .add-category-input {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .add-category-input:focus {
+      outline: none;
+      border-color: var(--color-accent);
+    }
+
+    /* 主内容区 */
+    .main-content {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    
+    .main-content h2 {
+      font-size: 1.1rem;
+      margin: 0 0 1.5rem;
+    }
+
+    /* 上传区域 */
+    .upload-area {
+      border: 2px dashed rgba(0, 0, 0, 0.15);
+      border-radius: var(--radius);
+      padding: 3rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all var(--transition);
+      cursor: pointer;
+    }
+    
+    .upload-area:hover,
+    .upload-area.is-dragging {
+      border-color: var(--color-accent);
+      background: rgba(255, 45, 85, 0.02);
+    }
+    
+    .upload-area-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .upload-area-text {
+      color: var(--color-text-muted);
+      margin-bottom: 1rem;
+    }
+    
+    .upload-input {
+      display: none;
+    }
+
+    /* 照片网格 */
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+    
+    .photo-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .photo-delete {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all var(--transition);
+    }
+    
+    .photo-item:hover .photo-delete {
+      opacity: 1;
+    }
+    
+    .photo-delete:hover {
+      background: var(--color-accent);
+      color: white;
+    }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--color-text-muted);
+    }
+
+    /* 加载状态 */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top-color: var(--color-accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 进度条 */
+    .upload-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--color-accent);
+      height: 3px;
+      transform-origin: left;
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .upload-progress.is-active {
+      transform: scaleX(1);
+    }
+  </style>
+</head>
+<body>
+  <!-- 进度条 -->
+  <div class="upload-progress" id="uploadProgress"></div>
+
+  <!-- 登录界面 -->
+  <div class="login-container" id="loginContainer">
+    <div class="login-box">
+      <h1>作品管理后台</h1>
+      <input type="password" class="password-input" id="passwordInput" placeholder="请输入管理密码" autocomplete="current-password">
+      <button class="login-btn" id="loginBtn">登录</button>
+      <div class="login-error" id="loginError">密码错误</div>
+    </div>
+  </div>
+
+  <!-- 管理界面 -->
+  <div class="admin-container" id="adminContainer">
+    <div class="admin-header">
+      <h1>作品管理后台</h1>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="viewSiteBtn">查看网站</button>
+        <button class="btn btn-secondary" id="logoutBtn">退出登录</button>
+      </div>
+    </div>
+
+    <div class="admin-layout">
+      <aside class="sidebar">
+        <h2>分类管理</h2>
+        <ul class="category-list" id="categoryList"></ul>
+        <div class="add-category-form">
+          <input type="text" class="add-category-input" id="newCategoryInput" placeholder="新建分类名称">
+          <button class="btn btn-primary" id="addCategoryBtn" style="width: 100%;">创建分类</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <h2 id="currentCategoryTitle">请选择分类</h2>
+        <div class="upload-area" id="uploadArea" style="display: none;">
+          <div class="upload-area-icon">📤</div>
+          <div class="upload-area-text">拖拽照片到这里上传<br>或点击选择文件</div>
+          <input type="file" class="upload-input" id="uploadInput" accept="image/*" multiple>
+        </div>
+        <div class="photos-grid" id="photosGrid"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // 简化的管理后台 - 本地版本，使用本地文件夹
+    // 注意：这是本地开发版本，部署到 Vercel 后需要使用上传 API
+    
+    let adminPassword = localStorage.getItem('adminPassword') || '';
+    
+    const loginContainer = document.getElementById('loginContainer');
+    const adminContainer = document.getElementById('adminContainer');
+    const passwordInput = document.getElementById('passwordInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    
+    // 本地开发模式提示
+    alert('这是本地开发版本。\n\n要使用完整的管理功能，请：\n1. 注册 Cloudinary 账号\n2. 部署到 Vercel\n3. 设置环境变量\n\n详见 DEPLOY.md 部署文档');
+    
+    loginBtn.addEventListener('click', () => {
+      const password = passwordInput.value.trim();
+      // 本地开发使用简单密码验证
+      if (password === 'admin') {
+        localStorage.setItem('adminPassword', password);
+        location.reload();
+      } else {
+        loginError.classList.add('is-visible');
+      }
+    });
+    
+    passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loginBtn.click();
+    });
+    
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('adminPassword');
+      location.reload();
+    });
+    
+    document.getElementById('viewSiteBtn').addEventListener('click', () => {
+      window.open('./index.html', '_blank');
+    });
+    
+    if (adminPassword === 'admin') {
+      loginContainer.style.display = 'none';
+      adminContainer.classList.add('is-visible');
+    }
+  </script>
+</body>
+</html>
