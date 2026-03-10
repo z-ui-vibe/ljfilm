@@ -468,23 +468,67 @@
     const loginBtn = document.getElementById('loginBtn');
     const loginError = document.getElementById('loginError');
     
-    // 本地开发模式提示
-    alert('这是本地开发版本。\n\n要使用完整的管理功能，请：\n1. 注册 Cloudinary 账号\n2. 部署到 Vercel\n3. 设置环境变量\n\n详见 DEPLOY.md 部署文档');
+    // 检查是否已登录
+    if (adminPassword) {
+      // 验证存储的密码是否仍有效
+      verifyPassword(adminPassword);
+    }
     
-    loginBtn.addEventListener('click', () => {
+    // 登录按钮事件
+    loginBtn.addEventListener('click', async () => {
       const password = passwordInput.value.trim();
-      // 本地开发使用简单密码验证
-      if (password === 'admin') {
-        localStorage.setItem('adminPassword', password);
-        location.reload();
-      } else {
+      if (!password) {
+        loginError.textContent = '请输入密码';
         loginError.classList.add('is-visible');
+        return;
       }
+      
+      await verifyPassword(password);
     });
     
     passwordInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') loginBtn.click();
     });
+    
+    // 验证密码函数
+    async function verifyPassword(password) {
+      loginBtn.textContent = '验证中...';
+      loginBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 密码正确，保存到 localStorage
+          localStorage.setItem('adminPassword', password);
+          showAdminPanel();
+        } else {
+          loginError.textContent = result.error || '密码错误';
+          loginError.classList.add('is-visible');
+        }
+      } catch (error) {
+        console.error('登录请求失败:', error);
+        loginError.textContent = '网络错误，请检查连接';
+        loginError.classList.add('is-visible');
+      } finally {
+        loginBtn.textContent = '登录';
+        loginBtn.disabled = false;
+      }
+    }
+    
+    // 显示管理面板
+    function showAdminPanel() {
+      loginContainer.style.display = 'none';
+      adminContainer.classList.add('is-visible');
+    }
     
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('adminPassword');
@@ -494,11 +538,6 @@
     document.getElementById('viewSiteBtn').addEventListener('click', () => {
       window.open('./index.html', '_blank');
     });
-    
-    if (adminPassword === 'admin') {
-      loginContainer.style.display = 'none';
-      adminContainer.classList.add('is-visible');
-    }
   </script>
 </body>
 </html>
