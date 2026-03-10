@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "ADMIN_PASSWORD": "your-secure-password-here",
+    "CLOUDINARY_CLOUD_NAME": "your-cloud-name",
+    "CLOUDINARY_API_KEY": "your-api-key",
+    "CLOUDINARY_API_SECRET": "your-api-secret"
+  }
+}
