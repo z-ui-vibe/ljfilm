@@ -171,8 +171,20 @@
     .gallery-photos-view.is-open {
       display: block;
     }
-    .gallery-back-btn {
+    .gallery-view-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
       margin-bottom: 1.5rem;
+    }
+    .gallery-view-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .gallery-back-btn {
       padding: 0.5rem 1rem;
       font-size: 0.95rem;
       color: var(--color-text-muted);
@@ -366,7 +378,10 @@
       <ul class="gallery-categories" id="galleryCategories"></ul>
       <!-- 某个分类下的多张照片（点进分类后显示，每张点击可放大） -->
       <div class="gallery-photos-view" id="galleryPhotosView">
-        <button type="button" class="gallery-back-btn" id="galleryBackBtn">← 返回分类</button>
+        <div class="gallery-view-header">
+          <button type="button" class="gallery-back-btn" id="galleryBackBtn">← 返回分类</button>
+          <p class="gallery-view-title" id="galleryViewTitle"></p>
+        </div>
         <ul class="gallery-photos-grid" id="galleryPhotosGrid"></ul>
       </div>
     </section>
@@ -870,129 +885,183 @@
       return galleryData;
     }
 
-    // ========== 二、渲染分类卡片（首页看到的「街头」「山景」等） ==========
+    // ========== 二、页面状态与节点 ==========
     var galleryCategoriesEl = document.getElementById('galleryCategories');
     var galleryPhotosViewEl = document.getElementById('galleryPhotosView');
     var galleryPhotosGridEl = document.getElementById('galleryPhotosGrid');
+    var galleryViewTitleEl = document.getElementById('galleryViewTitle');
+    var adminPassword = localStorage.getItem('adminPassword') || '';
+    var currentView = 'categories';
+    var currentCategoryId = null;
+    var coverTimers = [];
+
+    function clearCoverTimers() {
+      coverTimers.forEach(function (timer) {
+        clearInterval(timer);
+      });
+      coverTimers = [];
+    }
+
+    function getPhotoThumb(src) {
+      return src && src.indexOf('w=1200') > -1 ? src.replace('w=1200', 'w=400') : src;
+    }
+
+    function getLikedEntries() {
+      var likedEntries = [];
+      galleryData.forEach(function (category) {
+        category.photos.forEach(function (photo, photoIndex) {
+          if (photo.liked) {
+            likedEntries.push({
+              categoryId: category.id,
+              categoryName: category.name,
+              photoIndex: photoIndex,
+              photo: photo
+            });
+          }
+        });
+      });
+      return likedEntries;
+    }
+
+    function startCategoryCoverRotation(cardEl, photos) {
+      if (!photos || photos.length <= 1) return;
+      var imageEl = cardEl.querySelector('img');
+      if (!imageEl) return;
+
+      var currentIndex = 0;
+      var timer = setInterval(function () {
+        currentIndex = (currentIndex + 1) % photos.length;
+        imageEl.src = getPhotoThumb(photos[currentIndex].src);
+      }, 2500);
+      coverTimers.push(timer);
+    }
 
     function renderCategories() {
+      clearCoverTimers();
       galleryCategoriesEl.innerHTML = '';
-      
-      // 先添加「收藏」分类卡片（特殊分类，ID 为 __liked__）
-      var likedCount = Object.keys(getLikedPhotos()).length;
+
+      var likedEntries = getLikedEntries();
       var likedLi = document.createElement('li');
       likedLi.className = 'category-card is-liked-category';
       likedLi.setAttribute('data-category-id', '__liked__');
-      likedLi.innerHTML = '<div class="liked-heart"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div><span>收藏 (' + likedCount + ')</span>';
+      likedLi.innerHTML = '<div class="liked-heart"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div><span>总收藏夹 (' + likedEntries.length + ')</span>';
       galleryCategoriesEl.appendChild(likedLi);
-      
-      // 再添加普通分类
-      galleryData.forEach(function (cat) {
+
+      galleryData.forEach(function (category) {
+        var coverSrc = category.cover || (category.photos[0] && category.photos[0].src) || '';
         var li = document.createElement('li');
         li.className = 'category-card';
-        li.setAttribute('data-category-id', cat.id);
-        li.innerHTML = '<img src="' + cat.cover + '" alt="' + cat.name + '"><span>' + cat.name + '</span>';
+        li.setAttribute('data-category-id', category.id);
+        li.innerHTML = '<img src="' + getPhotoThumb(coverSrc) + '" alt="' + category.name + '"><span>' + category.name + '</span>';
         galleryCategoriesEl.appendChild(li);
+        startCategoryCoverRotation(li, category.photos);
       });
     }
 
-    // ========== 点赞状态管理（使用 localStorage 持久化） ==========
-    function getLikedPhotos() {
-      var data = localStorage.getItem('likedPhotos');
-      return data ? JSON.parse(data) : {};
-    }
-
-    function saveLikedPhotos(likedMap) {
-      localStorage.setItem('likedPhotos', JSON.stringify(likedMap));
-    }
-
-    function isPhotoLiked(photoId) {
-      var liked = getLikedPhotos();
-      return !!liked[photoId];
-    }
-
-    function togglePhotoLike(photoId) {
-      var liked = getLikedPhotos();
-      if (liked[photoId]) {
-        delete liked[photoId];
-      } else {
-        liked[photoId] = true;
-      }
-      saveLikedPhotos(liked);
-      return liked[photoId];
-    }
-
-    // ========== 三、点进分类：显示该分类下的多张照片（画廊） ==========
-    function showCategoryGallery(categoryId) {
-      var cat = galleryData.find(function (c) { return c.id === categoryId; });
-      if (!cat) return;
+    function renderPhotoGrid(entries, titleText) {
       galleryPhotosGridEl.innerHTML = '';
-      cat.photos.forEach(function (photo, index) {
+      galleryViewTitleEl.textContent = titleText || '';
+
+      if (!entries.length) {
+        galleryPhotosGridEl.innerHTML = '<li style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--color-text-muted);">这里还没有照片</li>';
+        return;
+      }
+
+      entries.forEach(function (entry) {
         var li = document.createElement('li');
-        var thumb = photo.src.replace('w=1200', 'w=400') || photo.src;
-        var photoId = cat.id + '_' + index;
-        var isLiked = isPhotoLiked(photoId);
-        li.innerHTML = '<button type="button" class="like-btn ' + (isLiked ? 'is-liked' : '') + '" data-photo-id="' + photoId + '" aria-label="喜欢">' +
+        var photo = entry.photo;
+        var label = entry.categoryName && currentView === 'liked'
+          ? entry.categoryName + ' · ' + (photo.caption || '')
+          : (photo.caption || '');
+
+        li.innerHTML = '<button type="button" class="like-btn ' + (photo.liked ? 'is-liked' : '') + '" data-category-id="' + entry.categoryId + '" data-photo-index="' + entry.photoIndex + '" aria-label="喜欢">' +
             '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
           '</button>' +
-          '<a href="' + photo.src + '" class="gallery-item" data-caption="' + (photo.caption || '') + '">' +
-            '<img src="' + thumb + '" alt="' + (photo.caption || '') + '"><span>' + (photo.caption || '') + '</span></a>';
+          '<a href="' + photo.src + '" class="gallery-item" data-caption="' + label + '">' +
+            '<img src="' + getPhotoThumb(photo.src) + '" alt="' + label + '"><span>' + label + '</span></a>';
         galleryPhotosGridEl.appendChild(li);
       });
+    }
+
+    // ========== 三、分类详情与总收藏夹 ==========
+    function showCategoryGallery(categoryId) {
+      var category = galleryData.find(function (item) { return item.id === categoryId; });
+      if (!category) return;
+
+      currentView = 'category';
+      currentCategoryId = categoryId;
+      renderPhotoGrid(category.photos.map(function (photo, photoIndex) {
+        return {
+          categoryId: category.id,
+          categoryName: category.name,
+          photoIndex: photoIndex,
+          photo: photo
+        };
+      }), category.name);
+
+      galleryCategoriesEl.style.display = 'none';
+      galleryPhotosViewEl.classList.add('is-open');
+    }
+
+    function showLikedPhotosGallery() {
+      currentView = 'liked';
+      currentCategoryId = null;
+      renderPhotoGrid(getLikedEntries(), '总收藏夹');
       galleryCategoriesEl.style.display = 'none';
       galleryPhotosViewEl.classList.add('is-open');
     }
 
     function hideCategoryGallery() {
+      currentView = 'categories';
+      currentCategoryId = null;
       galleryPhotosViewEl.classList.remove('is-open');
       galleryCategoriesEl.style.display = '';
-      // 返回分类列表时重新渲染，更新收藏数量
       renderCategories();
     }
 
-    // ========== 四、显示所有点赞的照片（收藏夹） ==========
-    function showLikedPhotosGallery() {
-      var likedMap = getLikedPhotos();
-      var likedIds = Object.keys(likedMap);
-      
-      galleryPhotosGridEl.innerHTML = '';
-      
-      if (likedIds.length === 0) {
-        galleryPhotosGridEl.innerHTML = '<li style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--color-text-muted);">还没有收藏任何照片<br>点击照片上的爱心按钮来收藏</li>';
-      } else {
-        // 遍历所有分类，收集被点赞的照片
-        galleryData.forEach(function (cat) {
-          cat.photos.forEach(function (photo, index) {
-            var photoId = cat.id + '_' + index;
-            if (likedMap[photoId]) {
-              var li = document.createElement('li');
-              var thumb = photo.src.replace('w=1200', 'w=400') || photo.src;
-              li.innerHTML = '<button type="button" class="like-btn is-liked" data-photo-id="' + photoId + '" aria-label="取消喜欢">' +
-                  '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
-                '</button>' +
-                '<a href="' + photo.src + '" class="gallery-item" data-caption="' + (photo.caption || '') + '">' +
-                  '<img src="' + thumb + '" alt="' + (photo.caption || '') + '"><span>' + (photo.caption || '') + '</span></a>';
-              galleryPhotosGridEl.appendChild(li);
-            }
-          });
-        });
+    async function togglePhotoLikeOnServer(categoryId, photoIndex) {
+      var response = await fetch('/api/update-gallery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminPassword
+        },
+        body: JSON.stringify({
+          action: 'toggleLike',
+          categoryId: categoryId,
+          photoIndex: photoIndex
+        })
+      });
+
+      var result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '更新喜欢状态失败');
       }
-      
-      galleryCategoriesEl.style.display = 'none';
-      galleryPhotosViewEl.classList.add('is-open');
+
+      galleryData = result.data.categories || [];
     }
 
-    // 异步初始化
+    function refreshCurrentView() {
+      if (currentView === 'liked') {
+        showLikedPhotosGallery();
+      } else if (currentView === 'category' && currentCategoryId) {
+        showCategoryGallery(currentCategoryId);
+      } else {
+        renderCategories();
+      }
+    }
+
     async function initGallery() {
       galleryData = await loadGalleryDataFromAPI();
       renderCategories();
     }
-    
+
     initGallery();
 
     galleryCategoriesEl.addEventListener('click', function (e) {
       var card = e.target.closest('.category-card');
       if (!card) return;
+
       var categoryId = card.getAttribute('data-category-id');
       if (categoryId === '__liked__') {
         showLikedPhotosGallery();
@@ -1019,13 +1088,32 @@
       lightbox.setAttribute('aria-hidden', 'true');
     }
 
-    galleryPhotosGridEl.addEventListener('click', function (e) {
+    galleryPhotosGridEl.addEventListener('click', async function (e) {
       var likeBtn = e.target.closest('.like-btn');
       if (likeBtn) {
+        e.preventDefault();
         e.stopPropagation();
-        var photoId = likeBtn.getAttribute('data-photo-id');
-        var isNowLiked = togglePhotoLike(photoId);
-        likeBtn.classList.toggle('is-liked', isNowLiked);
+
+        if (!adminPassword) {
+          alert('请先登录管理后台，再回到前台标记喜欢。');
+          return;
+        }
+
+        try {
+          await togglePhotoLikeOnServer(
+            likeBtn.getAttribute('data-category-id'),
+            Number(likeBtn.getAttribute('data-photo-index'))
+          );
+          refreshCurrentView();
+        } catch (error) {
+          if (String(error.message).indexOf('未授权') > -1) {
+            localStorage.removeItem('adminPassword');
+            adminPassword = '';
+            alert('管理员登录已失效，请重新登录后台。');
+          } else {
+            alert(error.message);
+          }
+        }
         return;
       }
 

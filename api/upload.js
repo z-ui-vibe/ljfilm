@@ -79,6 +79,7 @@ module.exports = async (req, res) => {
       src: uploadResult.secure_url,
       caption: caption || `照片 ${category.photos.length + 1}`,
       publicId: uploadResult.public_id,
+      liked: false,
       uploadedAt: new Date().toISOString()
     };
     

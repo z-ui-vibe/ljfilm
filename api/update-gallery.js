@@ -1,6 +1,6 @@
 /**
  * 更新画廊数据 API
- * 创建/删除分类，移动/删除照片
+ * 创建/删除分类、删除照片、切换喜欢状态
  */
 
 const fs = require('fs');
@@ -98,6 +98,24 @@ module.exports = async (req, res) => {
         } else {
           category.cover = '';
         }
+        break;
+      }
+
+      case 'toggleLike': {
+        const { categoryId, photoIndex } = req.body;
+        const category = galleryData.categories.find(c => c.id === categoryId);
+        if (!category) {
+          res.status(404).json({ error: '分类不存在' });
+          return;
+        }
+
+        if (photoIndex < 0 || photoIndex >= category.photos.length) {
+          res.status(400).json({ error: '照片索引无效' });
+          return;
+        }
+
+        const photo = category.photos[photoIndex];
+        photo.liked = !photo.liked;
         break;
       }
       

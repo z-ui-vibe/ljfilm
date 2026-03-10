@@ -457,101 +457,320 @@
   </div>
 
   <script>
-    // 简化的管理后台 - 本地版本，使用本地文件夹
-    // 注意：这是本地开发版本，部署到 Vercel 后需要使用上传 API
-    
+    // ========== 后台状态 ==========
     let adminPassword = localStorage.getItem('adminPassword') || '';
-    
+    let galleryData = { categories: [] };
+    let currentCategoryId = null;
+
+    // ========== DOM ==========
     const loginContainer = document.getElementById('loginContainer');
     const adminContainer = document.getElementById('adminContainer');
     const passwordInput = document.getElementById('passwordInput');
     const loginBtn = document.getElementById('loginBtn');
     const loginError = document.getElementById('loginError');
-    
-    // 检查是否已登录
+    const categoryList = document.getElementById('categoryList');
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const currentCategoryTitle = document.getElementById('currentCategoryTitle');
+    const uploadArea = document.getElementById('uploadArea');
+    const uploadInput = document.getElementById('uploadInput');
+    const photosGrid = document.getElementById('photosGrid');
+    const uploadProgress = document.getElementById('uploadProgress');
+
+    // ========== 登录 ==========
     if (adminPassword) {
-      // 验证存储的密码是否仍有效
       verifyPassword(adminPassword);
     }
-    
-    // 登录按钮事件
+
     loginBtn.addEventListener('click', async () => {
-      // 清除之前的错误提示
       loginError.classList.remove('is-visible');
       loginError.textContent = '';
-      
       const password = passwordInput.value.trim();
+
       if (!password) {
         loginError.textContent = '请输入密码';
         loginError.classList.add('is-visible');
         return;
       }
-      
+
       await verifyPassword(password);
     });
-    
+
     passwordInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') loginBtn.click();
     });
-    
-    // 验证密码函数
+
     async function verifyPassword(password) {
       loginBtn.textContent = '验证中...';
       loginBtn.disabled = true;
-      loginError.classList.remove('is-visible');
-      
+
       try {
-        console.log('正在发送登录请求...');
         const response = await fetch('/api/login', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ password })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password })
         });
-        
-        console.log('响应状态:', response.status);
         const result = await response.json();
-        console.log('响应结果:', result);
-        
+
         if (response.ok && result.success) {
-          // 密码正确，保存到 localStorage
+          adminPassword = password;
           localStorage.setItem('adminPassword', password);
           showAdminPanel();
+          await loadGalleryData();
         } else {
-          // 显示具体错误信息
-          const errorMsg = result.error || '密码错误';
-          console.error('登录失败:', errorMsg);
-          loginError.textContent = errorMsg;
+          loginError.textContent = result.error || '密码错误';
           loginError.classList.add('is-visible');
-          // 清除localStorage中的错误密码
           localStorage.removeItem('adminPassword');
         }
       } catch (error) {
-        console.error('登录请求失败:', error);
-        loginError.textContent = '网络错误: ' + error.message;
+        loginError.textContent = '网络错误，请稍后重试';
         loginError.classList.add('is-visible');
-        localStorage.removeItem('adminPassword');
       } finally {
         loginBtn.textContent = '登录';
         loginBtn.disabled = false;
       }
     }
-    
-    // 显示管理面板
+
     function showAdminPanel() {
       loginContainer.style.display = 'none';
       adminContainer.classList.add('is-visible');
     }
-    
+
     document.getElementById('logoutBtn').addEventListener('click', () => {
+      adminPassword = '';
       localStorage.removeItem('adminPassword');
       location.reload();
     });
-    
+
     document.getElementById('viewSiteBtn').addEventListener('click', () => {
-      window.open('./index.html', '_blank');
+      window.open('./', '_blank');
     });
+
+    // ========== 数据加载 ==========
+    async function loadGalleryData() {
+      const response = await fetch('/api/get-gallery');
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '加载失败');
+      }
+
+      galleryData = result.data || { categories: [] };
+      renderCategoryList();
+
+      if (currentCategoryId) {
+        selectCategory(currentCategoryId);
+      } else if (galleryData.categories[0]) {
+        selectCategory(galleryData.categories[0].id);
+      } else {
+        currentCategoryTitle.textContent = '请选择分类';
+        uploadArea.style.display = 'none';
+        photosGrid.innerHTML = '<div class="empty-state">先创建一个分类，再开始上传照片</div>';
+      }
+    }
+
+    // ========== 分类 ==========
+    addCategoryBtn.addEventListener('click', createCategory);
+    newCategoryInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') createCategory();
+    });
+
+    async function createCategory() {
+      const name = newCategoryInput.value.trim();
+      if (!name) {
+        alert('请输入分类名称');
+        return;
+      }
+
+      const result = await postAdminAction({
+        action: 'createCategory',
+        name: name
+      });
+
+      galleryData = result.data;
+      newCategoryInput.value = '';
+      renderCategoryList();
+      const created = galleryData.categories.find((item) => item.name === name);
+      if (created) {
+        selectCategory(created.id);
+      }
+    }
+
+    function renderCategoryList() {
+      categoryList.innerHTML = '';
+
+      galleryData.categories.forEach((category) => {
+        const li = document.createElement('li');
+        li.className = 'category-item' + (category.id === currentCategoryId ? ' is-active' : '');
+        li.innerHTML = '<span>' + category.name + '</span><span class="category-count">' + category.photos.length + '</span><button class="delete-category-btn" data-id="' + category.id + '">×</button>';
+
+        li.addEventListener('click', (e) => {
+          if (e.target.classList.contains('delete-category-btn')) return;
+          selectCategory(category.id);
+        });
+
+        li.querySelector('.delete-category-btn').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('确定删除这个分类吗？')) return;
+
+          const result = await postAdminAction({
+            action: 'deleteCategory',
+            categoryId: category.id
+          });
+
+          galleryData = result.data;
+          if (currentCategoryId === category.id) {
+            currentCategoryId = null;
+          }
+          renderCategoryList();
+          if (galleryData.categories[0]) {
+            selectCategory(galleryData.categories[0].id);
+          } else {
+            currentCategoryTitle.textContent = '请选择分类';
+            uploadArea.style.display = 'none';
+            photosGrid.innerHTML = '<div class="empty-state">分类已清空</div>';
+          }
+        });
+
+        categoryList.appendChild(li);
+      });
+    }
+
+    function selectCategory(categoryId) {
+      currentCategoryId = categoryId;
+      const category = galleryData.categories.find((item) => item.id === categoryId);
+      if (!category) return;
+
+      currentCategoryTitle.textContent = category.name;
+      uploadArea.style.display = 'block';
+      renderCategoryList();
+      renderPhotos(category);
+    }
+
+    // ========== 照片列表 ==========
+    function renderPhotos(category) {
+      if (!category.photos.length) {
+        photosGrid.innerHTML = '<div class="empty-state">这个分类还没有照片</div>';
+        return;
+      }
+
+      photosGrid.innerHTML = '';
+      category.photos.forEach((photo, photoIndex) => {
+        const item = document.createElement('div');
+        item.className = 'photo-item';
+        item.innerHTML = '<img src="' + photo.src + '" alt="' + (photo.caption || '') + '"><button class="photo-delete" data-index="' + photoIndex + '">×</button>';
+        item.querySelector('.photo-delete').addEventListener('click', async () => {
+          if (!confirm('确定删除这张照片吗？')) return;
+
+          const result = await postAdminAction({
+            action: 'deletePhoto',
+            categoryId: currentCategoryId,
+            photoIndex: photoIndex
+          });
+
+          galleryData = result.data;
+          const refreshed = galleryData.categories.find((entry) => entry.id === currentCategoryId);
+          renderCategoryList();
+          if (refreshed) {
+            renderPhotos(refreshed);
+          } else {
+            photosGrid.innerHTML = '<div class="empty-state">该分类已不存在</div>';
+          }
+        });
+        photosGrid.appendChild(item);
+      });
+    }
+
+    // ========== 上传 ==========
+    uploadArea.addEventListener('click', () => uploadInput.click());
+    uploadInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('is-dragging');
+    });
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('is-dragging');
+    });
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('is-dragging');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    async function handleFiles(fileList) {
+      if (!currentCategoryId) {
+        alert('请先选择一个分类');
+        return;
+      }
+
+      const files = Array.from(fileList).filter((file) => file.type.indexOf('image/') === 0);
+      if (!files.length) {
+        alert('请选择图片文件');
+        return;
+      }
+
+      uploadProgress.classList.add('is-active');
+      for (const file of files) {
+        await uploadSingleFile(file);
+      }
+      uploadProgress.classList.remove('is-active');
+      uploadInput.value = '';
+      await loadGalleryData();
+    }
+
+    async function uploadSingleFile(file) {
+      const base64 = await fileToBase64(file);
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminPassword
+        },
+        body: JSON.stringify({
+          image: base64,
+          categoryId: currentCategoryId,
+          caption: file.name.replace(/\.[^.]+$/, '')
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '上传失败');
+      }
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          resolve(event.target.result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function postAdminAction(payload) {
+      const response = await fetch('/api/update-gallery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminPassword
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        if (response.status === 401) {
+          localStorage.removeItem('adminPassword');
+          adminPassword = '';
+          location.reload();
+        }
+        throw new Error(result.error || '操作失败');
+      }
+
+      return result;
+    }
   </script>
 </body>
 </html>
