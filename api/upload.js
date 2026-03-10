@@ -35,9 +35,9 @@ module.exports = async (req, res) => {
     return;
   }
   
-  // 验证管理密码
+  // 验证管理密码（优先使用环境变量，如果没有则使用硬编码密码）
   const authHeader = req.headers.authorization;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'ljfilm123';
   
   if (!authHeader || authHeader !== `Bearer ${adminPassword}`) {
     res.status(401).json({ error: '未授权' });

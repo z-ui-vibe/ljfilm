@@ -23,7 +23,8 @@ module.exports = async (req, res) => {
   
   try {
     const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    // 优先使用环境变量，如果没有设置则使用硬编码密码
+    const adminPassword = process.env.ADMIN_PASSWORD || 'ljfilm123';
     
     console.log('登录请求收到');
     console.log('请求体:', req.body);
