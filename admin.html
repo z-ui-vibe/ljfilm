@@ -520,9 +520,12 @@
         } else {
           loginError.textContent = result.error || '密码错误';
           loginError.classList.add('is-visible');
+          adminPassword = '';
           localStorage.removeItem('adminPassword');
         }
       } catch (error) {
+        adminPassword = '';
+        localStorage.removeItem('adminPassword');
         loginError.textContent = '网络错误，请稍后重试';
         loginError.classList.add('is-visible');
       } finally {

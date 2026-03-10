@@ -4,6 +4,7 @@
  */
 
 const { readGalleryData, writeGalleryData } = require('./_lib/gallery-store');
+const { requireAuthorizedRequest } = require('./_lib/auth');
 
 module.exports = async (req, res) => {
   // 设置 CORS 头
@@ -17,12 +18,7 @@ module.exports = async (req, res) => {
     return;
   }
   
-  // 验证管理密码（优先使用环境变量，如果没有则使用硬编码密码）
-  const authHeader = req.headers.authorization;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ljfilm123';
-  
-  if (!authHeader || authHeader !== `Bearer ${adminPassword}`) {
-    res.status(401).json({ error: '未授权' });
+  if (!requireAuthorizedRequest(req, res)) {
     return;
   }
   
@@ -36,7 +32,7 @@ module.exports = async (req, res) => {
       case 'createCategory': {
         const { name } = req.body;
         if (!name) {
-          res.status(400).json({ error: '分类名称不能为空' });
+          res.status(400).json({ success: false, error: '分类名称不能为空' });
           return;
         }
         
@@ -44,7 +40,7 @@ module.exports = async (req, res) => {
         
         // 检查是否已存在
         if (galleryData.categories.find(c => c.id === id)) {
-          res.status(400).json({ error: '分类已存在' });
+          res.status(400).json({ success: false, error: '分类已存在' });
           return;
         }
         
@@ -63,7 +59,7 @@ module.exports = async (req, res) => {
         const { categoryId } = req.body;
         const index = galleryData.categories.findIndex(c => c.id === categoryId);
         if (index === -1) {
-          res.status(404).json({ error: '分类不存在' });
+          res.status(404).json({ success: false, error: '分类不存在' });
           return;
         }
         
@@ -75,12 +71,12 @@ module.exports = async (req, res) => {
         const { categoryId, photoIndex } = req.body;
         const category = galleryData.categories.find(c => c.id === categoryId);
         if (!category) {
-          res.status(404).json({ error: '分类不存在' });
+          res.status(404).json({ success: false, error: '分类不存在' });
           return;
         }
         
         if (photoIndex < 0 || photoIndex >= category.photos.length) {
-          res.status(400).json({ error: '照片索引无效' });
+          res.status(400).json({ success: false, error: '照片索引无效' });
           return;
         }
         
@@ -99,12 +95,12 @@ module.exports = async (req, res) => {
         const { categoryId, photoIndex } = req.body;
         const category = galleryData.categories.find(c => c.id === categoryId);
         if (!category) {
-          res.status(404).json({ error: '分类不存在' });
+          res.status(404).json({ success: false, error: '分类不存在' });
           return;
         }
 
         if (photoIndex < 0 || photoIndex >= category.photos.length) {
-          res.status(400).json({ error: '照片索引无效' });
+          res.status(400).json({ success: false, error: '照片索引无效' });
           return;
         }
 
@@ -114,7 +110,7 @@ module.exports = async (req, res) => {
       }
       
       default:
-        res.status(400).json({ error: '未知操作' });
+        res.status(400).json({ success: false, error: '未知操作' });
         return;
     }
     
@@ -129,6 +125,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('更新失败:', error);
     res.status(500).json({
+      success: false,
       error: '更新失败: ' + error.message
     });
   }

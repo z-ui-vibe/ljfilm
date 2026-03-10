@@ -89,6 +89,11 @@ git commit -m "Initial commit"
 | `CLOUDINARY_API_SECRET` | 你的 API Secret | 从 Cloudinary Dashboard 获取 |
 | `BLOB_READ_WRITE_TOKEN` | 你的 Blob Token | 从 Vercel Storage > Blob 获取，用于持久化保存分类、照片元数据和喜欢状态 |
 
+重要：
+- `ADMIN_PASSWORD` 现在只从 **Vercel Dashboard > Settings > Environment Variables** 读取
+- 不要再把密码写在代码文件里
+- 如果你修改了后台密码，保存后需要等待 Vercel 重新部署完成
+
 #### 3.3.1 启用 Vercel Blob
 
 1. 打开你的 Vercel 项目

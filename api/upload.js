@@ -5,6 +5,7 @@
 
 const cloudinary = require('cloudinary').v2;
 const { readGalleryData, writeGalleryData } = require('./_lib/gallery-store');
+const { requireAuthorizedRequest } = require('./_lib/auth');
 
 // 初始化 Cloudinary
 cloudinary.config({
@@ -32,12 +33,7 @@ module.exports = async (req, res) => {
     return;
   }
   
-  // 验证管理密码（优先使用环境变量，如果没有则使用硬编码密码）
-  const authHeader = req.headers.authorization;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'ljfilm123';
-  
-  if (!authHeader || authHeader !== `Bearer ${adminPassword}`) {
-    res.status(401).json({ error: '未授权' });
+  if (!requireAuthorizedRequest(req, res)) {
     return;
   }
   
@@ -45,7 +41,7 @@ module.exports = async (req, res) => {
     const { image, categoryId, caption } = req.body;
     
     if (!image || !categoryId) {
-      res.status(400).json({ error: '缺少必要参数' });
+      res.status(400).json({ success: false, error: '缺少必要参数' });
       return;
     }
     
@@ -55,7 +51,7 @@ module.exports = async (req, res) => {
     // 查找分类
     const category = galleryData.categories.find(c => c.id === categoryId);
     if (!category) {
-      res.status(404).json({ error: '分类不存在' });
+      res.status(404).json({ success: false, error: '分类不存在' });
       return;
     }
     
@@ -96,6 +92,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('上传失败:', error);
     res.status(500).json({
+      success: false,
       error: '上传失败: ' + error.message
     });
   }
